@@ -1,79 +1,14 @@
-type AnyEnum = string | number;
-
-// function getText(enumMember: AnyEnum, allMembers: any) {
-//   if (typeof enumMember === 'string') return enumMember;
-//   if (typeof enumMember === 'number') return allMembers[enumMember];
-//   return "";
-// }
-
-interface TAStage0<TToken extends AnyEnum, TGroup extends AnyEnum> {
-  /** Sets a classifier function which is used to map each character to a TGroup */
-  setClassifier: (
-    classifier: (character: string) => TGroup
-  ) => TAStage1<TToken, TGroup>;
-}
-
-interface TAStage1<TToken extends AnyEnum, TGroup extends AnyEnum> {
-  /**
-   * Begins a block of transitions by specifying which token
-   * they apply to
-   */
-  whenTokenIs: (token: TToken) => TAStage2<TToken, TGroup>;
-}
-
-interface TAStage2<TToken extends AnyEnum, TGroup extends AnyEnum> {
-  /**
-   * Begins the definition of a transition by specifying
-   * a 'before' set of character groups that this transition applies to
-   */
-  fromAnyOf: (group: TGroup, ...args: TGroup[]) => TAStage3<TToken, TGroup>;
-}
-
-interface TAStage3<TToken extends AnyEnum, TGroup extends AnyEnum> {
-  /**
-   * Continues the definition of a transition by specifying
-   * an 'after' set of character groups that this transition applies to
-   */
-  toAnyOf: (group: TGroup, ...args: TGroup[]) => TAStage4<TToken, TGroup>;
-}
-
-interface TAStage4<TToken extends AnyEnum, TGroup extends AnyEnum> {
-  /**
-   * Completes the definition of a transition by specifying the
-   * which token results from this transition
-   */
-  setsToken: (token: TToken) => TAStage5<TToken, TGroup>;
-}
-
-interface TAStage5<TToken extends AnyEnum, TGroup extends AnyEnum> {
-  /**
-   * Begins a block of transitions by specifying which token
-   * they apply to
-   */
-  whenTokenIs: (token: TToken) => TAStage2<TToken, TGroup>;
-  /**
-   * Begins the definition of a transition by specifying
-   * a 'before' set of character groups that this transition applies to
-   */
-  fromAnyOf: (group: TGroup, ...args: TGroup[]) => TAStage3<TToken, TGroup>;
-  /**
-   * Performs analysis on the provided string based on the specified transitions,
-   * assuming that the first token is of the type specified
-   */
-  analyse: (value: string, startingToken: TToken) => ParsedToken<TToken>[];
-}
-
-type Transition<TToken extends AnyEnum, TGroup extends AnyEnum> = {
-  currentToken: TToken;
-  from: TGroup[];
-  to: TGroup[];
-  newToken?: TToken;
-};
-
-export type ParsedToken<TToken extends AnyEnum> = {
-  type: TToken;
-  value: string;
-};
+import {
+  AnyEnum,
+  ParsedToken,
+  TAStage0,
+  TAStage1,
+  TAStage2,
+  TAStage3,
+  TAStage4,
+  TAStage5,
+  Transition
+} from './types.ts';
 
 /** Creates and returns new instance of TokenAnalyser from which chained methods can be called for configuration */
 export default function TokenAnalyser<
@@ -81,7 +16,6 @@ export default function TokenAnalyser<
   TGroup extends AnyEnum
 >() {
   const NullTerminator = Symbol();
-  const Terminator = Symbol();
 
   /** A class which can be configured to break a string into tokens by configuring state-machine rules */
   class TokenAnalyser
@@ -195,10 +129,6 @@ export default function TokenAnalyser<
       this.currentTransition.newToken = token;
       return this;
     }
-
-    // terminates() {
-    //   this.setsToken(NullTerminator)
-    // }
 
     analyse(value: string, startingToken: TToken): ParsedToken<TToken>[] {
       let currentToken = startingToken;

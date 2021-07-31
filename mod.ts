@@ -1,2 +1,2 @@
 export { default } from './parser.ts';
-export * from './types.ts';
+export type { ParsedToken, Transition } from './types.ts';

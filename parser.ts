@@ -11,7 +11,7 @@ import {
 } from './types.ts';
 
 /** Creates and returns new instance of TokenAnalyser from which chained methods can be called for configuration */
-export default function TokenAnalyser<
+export function TokenAnalyser<
   TToken extends AnyEnum,
   TGroup extends AnyEnum
 >() {

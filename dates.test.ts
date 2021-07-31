@@ -1,4 +1,4 @@
-import Analyser from "./parser.ts";
+import { TokenAnalyser } from "./parser.ts";
 
 enum CharacterGroup {
   Number,
@@ -15,7 +15,7 @@ enum DateToken {
   //End
 }
 
-var analyser = Analyser();
+var analyser = TokenAnalyser();
 var configuredAnalyser = analyser.setClassifier((char: string) => {
   return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => i.toString()).includes(char)
     ? CharacterGroup.Number

@@ -1,4 +1,4 @@
-export { default as Analyser } from './parser.ts';
+export { TokenAnalyser } from './parser.ts';
 export type {
   AnyEnum,
   ParsedToken,

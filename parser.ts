@@ -1,7 +1,6 @@
 import {
   AnyEnum,
   ParsedToken,
-  TAStage0,
   TAStage1,
   TAStage2,
   TAStage3,
@@ -10,27 +9,23 @@ import {
   Transition
 } from './types.ts';
 
+type ClassifierFn<T> = (character: string) => T;
+
 /** Creates and returns new instance of TokenAnalyser from which chained methods can be called for configuration */
-export function TokenAnalyser<
-  TToken extends AnyEnum,
-  TGroup extends AnyEnum
->(classifier: (character: string) => TGroup) {
+export function TokenAnalyser<TToken extends AnyEnum, TGroup extends AnyEnum>(classifier: ClassifierFn<TGroup>) {
   const NullTerminator = Symbol();
 
   /** A class which can be configured to break a string into tokens by configuring state-machine rules */
   class TokenAnalyser
     implements
-      TAStage1<TToken, TGroup>,
-      TAStage2<TToken, TGroup>,
-      TAStage3<TToken, TGroup>,
-      TAStage4<TToken, TGroup>,
-      TAStage5<TToken, TGroup> {
-    /**
-     * This static method is called when the enclosing function is called, returning a
-     * new instance of TokenAnalyster
-     * */
-    static start(): TAStage0<TToken, TGroup> {
-      return new TokenAnalyser();
+    TAStage1<TToken, TGroup>,
+    TAStage2<TToken, TGroup>,
+    TAStage3<TToken, TGroup>,
+    TAStage4<TToken, TGroup>,
+    TAStage5<TToken, TGroup> {
+    constructor(classifier: ClassifierFn<TGroup>) {
+      this.getGroup = (character: string) =>
+        character === "\0" ? NullTerminator : classifier(character);
     }
 
     // For maintaining internal state
@@ -41,9 +36,7 @@ export function TokenAnalyser<
      * This function is called by each successive character to classify it.
      * This is set when setClassifer(...) is called on the TokenAnalyser instance
      */
-    private getGroup:
-      | ((character: string) => TGroup | typeof NullTerminator)
-      | undefined;
+    private readonly getGroup: ClassifierFn<TGroup | typeof NullTerminator>;
 
     /** An accumulated object of potential transitions which define tokens */
     private validTransitions: {
@@ -78,33 +71,31 @@ export function TokenAnalyser<
       return this.currentTransition;
     }
 
-    setClassifier(classifier: (character: string) => TGroup) {
-      // Combine the passed in classifier with a check for the end of the string
-      this.getGroup = (character: string) =>
-        character === "\0" ? NullTerminator : classifier(character);
-      return this;
-    }
-
     whenTokenIs(token: TToken) {
-      console.debug(`whenTokenIs(${token})`);
       this.currentKey = token;
       if (!this.validTransitions[token])
         this.validTransitions[this.currentKey] = [];
       return this;
     }
 
-    fromAnyOf(group: TGroup, ...args: TGroup[]) {
-      console.debug(`fromAnyOf(${[group, ...args]})`);
+    /**
+     * @deprecated
+     * Please use the legalCharacters / legalTransition API
+     */
+    fromAnyOf(...groups: TGroup[]) {
       if (this.currentKey === undefined) {
         throw Error(TokenAnalyser.BUILDER_ERROR);
       }
 
-      this.startNewTransition().from = [group, ...args];
+      this.startNewTransition().from = [...groups];
       return this;
     }
 
-    toAnyOf(group: TGroup, ...args: TGroup[]) {
-      console.debug(`toAnyOf(${[group, ...args]})`);
+    /**
+     * @deprecated
+     * Please use the legalCharacters / legalTransition API
+     */
+    toAnyOf(...groups: TGroup[]) {
       if (
         this.currentKey === undefined ||
         this.currentTransition === undefined ||
@@ -112,12 +103,15 @@ export function TokenAnalyser<
       ) {
         throw Error(TokenAnalyser.BUILDER_ERROR);
       }
-      this.currentTransition.to = [group, ...args];
+      this.currentTransition.to = [...groups];
       return this;
     }
 
+    /**
+     * @deprecated
+     * Please use the legalCharacters / legalTransition API
+     */
     setsToken(token: TToken) {
-      console.debug(`setsToken(${token})`);
       if (
         this.currentKey === undefined ||
         this.currentTransition === undefined ||
@@ -130,22 +124,20 @@ export function TokenAnalyser<
       return this;
     }
 
-    legalCharacters(group: TGroup, ...args: TGroup[]) {
+    legalCharacters(...groups: TGroup[]) {
       if (this.currentKey === undefined) {
         throw Error(TokenAnalyser.BUILDER_ERROR);
       }
       return this
-        .fromAnyOf(group, ...args)
-        .toAnyOf(group, ...args)
+        .fromAnyOf(...groups)
+        .toAnyOf(...groups)
         .setsToken(this.currentKey);
     }
 
     legalTransition(before: TGroup | TGroup[], after: TGroup | TGroup[], newToken: TToken) {
-      const [b1, ...bRest] = Array.isArray(before) ? before : [before];
-      const [a1, ...aRest] = Array.isArray(after) ? after : [after];
       return this
-        .fromAnyOf(b1, ...bRest)
-        .toAnyOf(a1, ...aRest)
+        .fromAnyOf(...Array.isArray(before) ? before : [before])
+        .toAnyOf(...Array.isArray(after) ? after : [after])
         .setsToken(newToken);
     }
 
@@ -154,7 +146,7 @@ export function TokenAnalyser<
       // TODO: Enhancement: Pass a function that will evaluate the first token
 
       /** This variable holds the token group of the current character */
-      let currentGroup = this.getGroup!(value.charAt(0)) as TGroup;
+      let currentGroup = this.getGroup(value.charAt(0)) as TGroup;
       /** This variable holds the running value of the current token */
       let runningValue = value.charAt(0);
 
@@ -165,7 +157,7 @@ export function TokenAnalyser<
         // Record what token group the current and next characters are from
         const transition: [TGroup, TGroup | typeof NullTerminator] = [
           currentGroup,
-          this.getGroup!(nextCharacter),
+          this.getGroup(nextCharacter),
         ];
 
         const storeCurrentToken = (() => {
@@ -196,9 +188,9 @@ export function TokenAnalyser<
         if (!result) {
           throw Error(
             "Illegal transition " +
-              JSON.stringify(transition) +
-              " when parsing " +
-              currentToken
+            JSON.stringify(transition) +
+            " when parsing " +
+            currentToken
           );
         }
 
@@ -219,6 +211,5 @@ export function TokenAnalyser<
     }
   }
 
-  const instance = TokenAnalyser.start().setClassifier(classifier);
-  return instance;
+  return new TokenAnalyser(classifier);
 }

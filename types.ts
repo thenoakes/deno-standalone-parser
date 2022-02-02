@@ -25,6 +25,16 @@ export interface TAStage2<TToken extends AnyEnum, TGroup extends AnyEnum> {
    * a 'before' set of character groups that this transition applies to
    */
   fromAnyOf: (group: TGroup, ...args: TGroup[]) => TAStage3<TToken, TGroup>;
+  /**
+   * A shorthand for .fromAnyOf(...).toAnyOf(...).setsToken(...)
+   * where the first two argument lists would be equal, and the 
+   * third argument would be the current token.
+   */
+  legalCharacters: (group: TGroup, ...args: TGroup[]) => TAStage5<TToken, TGroup>;
+  /**
+   * A shorthand for .fromAnyOf(...).toAnyOf(...).setsToken(...)
+   */
+  legalTransition: (before: TGroup | TGroup[], after: TGroup | TGroup[], newToken: TToken) => TAStage5<TToken, TGroup>;
 }
 
 // Enforce that a toAnyOf call must be followed by a setsToken call
@@ -49,17 +59,12 @@ export interface TAStage4<TToken extends AnyEnum, TGroup extends AnyEnum> {
 }
 
 // A token analyser in this state can either be run, or configured further
-export interface TAStage5<TToken extends AnyEnum, TGroup extends AnyEnum> {
+export interface TAStage5<TToken extends AnyEnum, TGroup extends AnyEnum> extends TAStage2<TToken, TGroup> {
   /**
    * Begins a block of transitions by specifying which token
    * they apply to
    */
   whenTokenIs: (token: TToken) => TAStage2<TToken, TGroup>;
-  /**
-   * Begins the definition of a transition by specifying
-   * a 'before' set of character groups that this transition applies to
-   */
-  fromAnyOf: (group: TGroup, ...args: TGroup[]) => TAStage3<TToken, TGroup>;
   /**
    * Performs analysis on the provided string based on the specified transitions,
    * assuming that the first token is of the type specified

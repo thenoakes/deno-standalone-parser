@@ -14,7 +14,7 @@ import {
 export function TokenAnalyser<
   TToken extends AnyEnum,
   TGroup extends AnyEnum
->() {
+>(classifier: (character: string) => TGroup) {
   const NullTerminator = Symbol();
 
   /** A class which can be configured to break a string into tokens by configuring state-machine rules */
@@ -130,6 +130,25 @@ export function TokenAnalyser<
       return this;
     }
 
+    legalCharacters(group: TGroup, ...args: TGroup[]) {
+      if (this.currentKey === undefined) {
+        throw Error(TokenAnalyser.BUILDER_ERROR);
+      }
+      return this
+        .fromAnyOf(group, ...args)
+        .toAnyOf(group, ...args)
+        .setsToken(this.currentKey);
+    }
+
+    legalTransition(before: TGroup | TGroup[], after: TGroup | TGroup[], newToken: TToken) {
+      const [b1, ...bRest] = Array.isArray(before) ? before : [before];
+      const [a1, ...aRest] = Array.isArray(after) ? after : [after];
+      return this
+        .fromAnyOf(b1, ...bRest)
+        .toAnyOf(a1, ...aRest)
+        .setsToken(newToken);
+    }
+
     analyse(value: string, startingToken: TToken): ParsedToken<TToken>[] {
       let currentToken = startingToken;
       // TODO: Enhancement: Pass a function that will evaluate the first token
@@ -200,5 +219,6 @@ export function TokenAnalyser<
     }
   }
 
-  return TokenAnalyser.start();
+  const instance = TokenAnalyser.start().setClassifier(classifier);
+  return instance;
 }

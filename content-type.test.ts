@@ -52,8 +52,7 @@ export enum Group {
   Null = "null",
 }
 
-var analyser = TokenAnalyser();
-var configuredAnalyser = analyser.setClassifier((character: string) => {
+const classifier = (character: string) => {
   const char = character.charAt(0);
   if (char === "\0") return Group.Null;
   if (/^-$/.test(char)) return Group.Hyphen;
@@ -65,33 +64,27 @@ var configuredAnalyser = analyser.setClassifier((character: string) => {
   if (/^[a-zA-Z]$/.test(char)) return Group.Letter;
   if (/^[0-9]$/.test(char)) return Group.Numeral;
   return Group.OtherSymbol;
-});
+};
+
+const analyser = TokenAnalyser<Token, Group>(classifier);
 
 test({
   name: "content-type",
   ignore: false,
   fn: () => {
-    const result = configuredAnalyser
+    const configuredAnalyser = analyser
       .whenTokenIs(Token.Type1)
-      .fromAnyOf(Group.Letter, Group.Hyphen).toAnyOf(Group.Letter, Group.Hyphen)
-      .setsToken(Token.Type1)
-      .fromAnyOf(Group.Letter).toAnyOf(Group.ForwardSlash).setsToken(
-        Token.TypeSep,
-      )
+      .legalCharacters(Group.Letter, Group.Hyphen)
+      .legalTransition(Group.Letter, Group.ForwardSlash, Token.TypeSep)
       .whenTokenIs(Token.TypeSep)
-      .fromAnyOf(Group.ForwardSlash).toAnyOf(Group.Letter).setsToken(
-        Token.Type2,
-      )
+      .legalTransition(Group.ForwardSlash, Group.Letter, Token.Type2)
       .whenTokenIs(Token.Type2)
-      .fromAnyOf(Group.Letter, Group.Hyphen).toAnyOf(Group.Letter, Group.Hyphen)
-      .setsToken(Token.Type2)
-      .fromAnyOf(Group.Letter).toAnyOf(Group.Whitespace).setsToken(Token.WS1)
-      .fromAnyOf(Group.Letter).toAnyOf(Group.Semicolon).setsToken(
-        Token.BeginParam,
-      )
-      .fromAnyOf(Group.Letter).toAnyOf(Group.Null).setsToken(Token.Terminator)
+      .legalCharacters(Group.Letter, Group.Hyphen)
+      .legalTransition(Group.Letter, Group.Whitespace, Token.WS1)
+      .legalTransition(Group.Letter, Group.Semicolon, Token.BeginParam)
+      .legalTransition(Group.Letter, Group.Null, Token.Terminator);
 
-      .analyse("multipart/related", Token.Type1);
+    const result = configuredAnalyser.analyse("multipart/related", Token.Type1);
 
     assertEquals(result.length, 3);
     assertEquals(result[0], { type: "type", value: "multipart" });
